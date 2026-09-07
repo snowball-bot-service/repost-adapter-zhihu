@@ -51,7 +51,7 @@ const CONST: {
   apiTimeout: number,
   apiRetries: number,
 } = {
-  provider: "REPLACE_ME",
+  provider: "zhihu",
   apiBaseURL: "https://example.com",
   apiTimeout: 5000,
   apiRetries: 1,
@@ -71,9 +71,9 @@ const adapter: Adapter = {
   manifest: {
     name: `repost-adapter-${CONST.provider}`,
     provider: CONST.provider,
-    whitelistHosts: ['example.com'],
+    whitelistHosts: ['zhihu.com'],
     version: 1,
-    author: 'REPLACE_ME',
+    author: 'Rominwolf',
     billing: {
       text: 100,
       token: 100,
@@ -81,8 +81,8 @@ const adapter: Adapter = {
       green: 1,
     },
     providerInfo: {
-      name: 'REPLACE_ME',
-      icon: '✨',
+      name: '知乎',
+      icon: '📚',
       color: '#FFFFFF',
       bgColor: '#000000',
     }

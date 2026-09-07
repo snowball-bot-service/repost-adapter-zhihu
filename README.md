@@ -1,6 +1,6 @@
-# repost-adapter-PROVIDER_NAME
+# repost-adapter-zhihu
 
-PROVIDER_NAME repost adapter for Snowball Bot v3.
+zhihu repost adapter for Snowball Bot v3.
 
 Clone this repo, follow the checklist below, and you'll have a working adapter ready to publish.
 
