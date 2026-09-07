@@ -12,27 +12,37 @@ export function extractURL(source: string) {
 /**
  * 提取 Source URL 中的 Handle ID (PostId, UserId, ...)
  * @param source 原始 URL
- * @example Path: /post/114514 => numberOfPath: 1 => 114514
+ * @example Path: /question/2011451349578031942/answer/2031204172268299364 => numberOfPath: 1 => question
  */
 export function extractHandleId(source: string): [RepostMethod?, string?] {
   const { pathname } = extractURL(source);
-  const paths = pathname.split('/') as [string, string, string?];
+  const [
+    _ = "/",
+    type = "/",
+    typeId,
+    subType = "/",
+    subTypeId,
+  ] = pathname.split('/') as string[];
+
+  console.log("EXTRACTS", pathname, type, typeId, subType, subTypeId);
+
+  if (subType === "answer" && subTypeId) return [ "post", subTypeId ];
 
   // 如果分割的 Paths 首个为空，则删除
-  if (paths.length > 1 && paths[0].length === 0) {
-    paths.shift();
-  }
+  // if (paths.length > 1 && paths[0].length === 0) {
+  //   paths.shift();
+  // }
 
-  const [type, tree2, tree3] = paths;
-
-  switch (type) {
-    case 'post':
-      return ['post', tree3!];
-    case 'user':
-      return ['profile', tree2];
-    case "live":
-      return ['live', tree3!];
-  }
+  // const [type, tree2, tree3] = paths;
+  //
+  // switch (type) {
+  //   case 'post':
+  //     return ['post', tree3!];
+  //   case 'user':
+  //     return ['profile', tree2];
+  //   case "live":
+  //     return ['live', tree3!];
+  // }
 
   return [];
 }

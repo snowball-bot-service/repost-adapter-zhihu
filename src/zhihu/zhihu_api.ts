@@ -1,7 +1,7 @@
 import { HttpManager } from '../utils/http';
 import { ILogger } from '@snowball-bot/repost-adapter';
 import { ZhihuBaseHttpParams } from './types/base';
-import { ZhihuAnswerDetailResponse, ZhihuFetchAnswerDetailParams } from './types/answer';
+import { ZhihuAnswerDetailItem, ZhihuFetchAnswerDetailParams } from './types/answer';
 
 /**
  * Zhihu Base HTTP Instance
@@ -29,7 +29,7 @@ export function buildHttpApi(cookie: string, logger?: ILogger) {
 export async function fetchAnswerDetail(
   base: ZhihuBaseHttpParams,
   params: ZhihuFetchAnswerDetailParams,
-): Promise<ZhihuAnswerDetailResponse> {
+): Promise<ZhihuAnswerDetailItem> {
   const {cookie, logger} = base;
   const {
     answerId,

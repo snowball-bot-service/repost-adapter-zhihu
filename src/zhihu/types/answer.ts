@@ -11,17 +11,17 @@ export interface ZhihuFetchAnswerDetailParams {
   platform?: string;
 }
 
-export interface ZhihuAnswerDetailResponse {
-  data: Data[];
+export interface ZhihuAnswersDetailResponse {
+  data: ZhihuAnswerDetailItem[];
   finished_reading_filtered_count: number;
   session: Session;
   paging: Paging;
 }
 
-export interface Data {
+export interface ZhihuAnswerDetail {
   type: string;
   target_type: string;
-  target: Target;
+  target: ZhihuAnswerDetailItem;
   skip_count: boolean;
   position: number;
   cursor: string;
@@ -39,7 +39,7 @@ export interface Paging {
   need_force_login: boolean;
 }
 
-export interface Target {
+export interface ZhihuAnswerDetailItem {
   allow_segment_interaction: number;
   answer_type: string;
   attached_info: string;
@@ -272,9 +272,24 @@ export interface Relation {
 }
 
 export interface Statistics {
+  applaud_count: number;
+  bullet_count: number;
+  comment_count: number;
   down_vote_count: number;
   favorites: number;
+  img_like_count: Record<string, number>;
+  interest_play_count: number;
   like_count: number;
+  plaincontent_like_count: number;
+  plaincontent_vote_up_count: number;
+  play_count: number;
+  pv_count: number;
+  question_answer_count: number;
+  question_follower_count: number;
+  republishers: any[];
+  share_count: number;
+  subscribe_count: number;
+  up_vote_count: number;
 }
 
 export interface Mark {

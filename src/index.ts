@@ -11,6 +11,9 @@ import {extractHandleId, fetchHandleDataFromAPI} from "./manager";
 import {UnsupportedMethodException, UnsupportedProcessException} from "./utils/error";
 import dayjs from "dayjs";
 import {RepostExtraParams} from "./type";
+import { fetchAnswerDetail } from './zhihu/zhihu_api';
+import { parse, HTMLElement } from 'node-html-parser';
+import { htmlToText } from './utils/html-parse';
 
 export { HttpManager, HttpError } from './utils/http';
 export type {
@@ -35,7 +38,7 @@ export type {
 // ============================================================================
 
 interface AdapterOptions {
-  apiKey?: string;
+  zhihuCookie: string;
 }
 
 /**
@@ -46,25 +49,9 @@ interface AdapterOptions {
  * @param apiRetries API 重试次数
  */
 const CONST: {
-  apiBaseURL: string,
   provider: SocialProvider,
-  apiTimeout: number,
-  apiRetries: number,
 } = {
   provider: "zhihu",
-  apiBaseURL: "https://example.com",
-  apiTimeout: 5000,
-  apiRetries: 1,
-}
-
-/**
- * 实例仓库
- * @param instance.http 模块级 HTTP 客户端, 在 initState 中创建, dispose 中销毁
- * */
-const INSTANCE: {
-  http: HttpManager | null;
-} = {
-  http: null,
 }
 
 const adapter: Adapter = {
@@ -84,7 +71,7 @@ const adapter: Adapter = {
       name: '知乎',
       icon: '📚',
       color: '#FFFFFF',
-      bgColor: '#000000',
+      bgColor: '#1772F6',
     }
   },
 
@@ -95,20 +82,11 @@ const adapter: Adapter = {
   async initState(ctx: AdapterContext) {
     // 读取配置（可选）。配置由核心通过 `ctx.config(key)` 提供。
     // 比如 API key、限流参数等，建议把所有可调项都从 config 取。
-    const apiKey = ctx.config<string>('apiKey');
-
-    // 创建 HTTP 客户端 (基于 fetch), 统一处理 baseUrl / 鉴权 / 超时 / 重试
-    INSTANCE.http = new HttpManager({
-      baseUrl: CONST.apiBaseURL,
-      timeoutMs: CONST.apiTimeout,
-      retries: CONST.apiRetries,
-      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
-      logger: ctx.logger,
-    });
+    const zhihuCookie = ctx.config<string>('zhihuCookie') ?? "";
 
     // 注册转发请求处理器
-    ctx.on('onRepostRequest', (req) => handleRepostRequest(req, ctx, {}));
-    ctx.on('onProcessRequest', (req) => handleProcessingRequest(req, ctx, {}));
+    ctx.on('onRepostRequest', (req) => handleRepostRequest(req, ctx, { zhihuCookie }));
+    ctx.on('onProcessRequest', (req) => handleProcessingRequest(req, ctx, { zhihuCookie }));
 
     ctx.logger.info(`[${CONST.provider}] Adapter initialized.`);
   },
@@ -119,9 +97,7 @@ const adapter: Adapter = {
    * eg. 关闭 HTTP 客户端, 清空定时器, 断开长连接...
    */
   async dispose() {
-    // 中断在途请求并释放 HTTP 客户端
-    INSTANCE.http?.dispose();
-    INSTANCE.http = null;
+
   },
 };
 
@@ -136,7 +112,7 @@ const adapter: Adapter = {
 async function handleRepostRequest(
   req: AdapterRepostRequestParams,
   ctx: AdapterContext,
-  _options: AdapterOptions,
+  options: AdapterOptions,
 ): Promise<AdapterRepostResponsePayload | null> {
   const { helper, logger } = ctx;
 
@@ -149,76 +125,83 @@ async function handleRepostRequest(
   if (!handleMethod || !handleId || handleMethod === "live")
     throw new UnsupportedMethodException(handleMethod, handleId);
 
-  // 调用平台 API 拿到原始数据
-  const handleData = await fetchHandleDataFromAPI(INSTANCE.http!, handleMethod, handleId);
-
-  // 函数：构建 Post
-  const fnBuildPost = (): Omit<
-    AdapterRepostResponsePayload<RepostExtraParams>,
-    'postId' | 'method' | "code" | "originalUrl" | "provider" | "requester"
-  > => {
-    const payload = handleData as unknown;
-
-    return {
-      publishAt: dayjs.unix(10000000000).toDate(),
-
-      author: {
-        nickname: "",
-      },
-
-      content: "",
-
-      badges: [
-        [
-          { emoji: "👀", name: helper.extraHumanable("浏览", 0, "次") },
-        ]
-      ],
-
-      strawberry: {
-        emoji: "🖼",
-        feature: "原图",
-      },
-
-      extra: {
-
-      }
-    };
-  };
-
-  // 函数：构建 Profile
-  const fnBuildProfile = (): Omit<
-    AdapterRepostResponsePayload,
-    'postId' | 'method' | "code" | "originalUrl" | "provider" | "requester"
-  > => {
-    const payload = handleData as unknown;
-
-    return {
-      author: {
-        nickname: "",
-      },
-
-      content: "",
-
-      badges: [
-        [
-          { emoji: "👀", name: helper.extraHumanable("浏览", 0, "次") },
-        ]
-      ],
-    }
-  }
-
-  // 转换成标准 response 格式
-  return {
+  const response: AdapterRepostResponsePayload<RepostExtraParams> = {
     method: handleMethod,
     provider: CONST.provider,
     code: req.code,
     originalUrl: req.source,
     requester: req.requester,
-
     postId: handleId,
-
-    ...(handleMethod === "post" ? fnBuildPost() : fnBuildProfile()),
+    content: 'Failed parse...',
+    author: {
+      nickname: 'Failed Parse',
+    },
   };
+
+  // 转发到 Post...
+  if (handleMethod === "post") {
+    const answer = await fetchAnswerDetail(
+      { cookie: options.zhihuCookie, logger: logger },
+      { answerId: handleId },
+    );
+
+    logger.debug("Answer", answer);
+
+    const { statistics } = answer.reaction;
+
+    const html = parse(answer.content);
+    const content = htmlToText(html);
+    const images = html.querySelectorAll("img").map((image) => ({
+      src: image.getAttribute("data-original"),
+      token: image.getAttribute("data-original-token"),
+    }));
+
+    Object.assign(response, {
+      publishAt: dayjs.unix(answer.created_time).toDate(),
+      author: {
+        nickname: answer.author.name,
+        userId: answer.author.url_token,
+        headshotUrl: answer.author.avatar_url,
+      },
+
+      title: answer.question.title,
+      cover: images[0]?.src,
+
+      content: content,
+
+      badges: [
+        [
+          { emoji: "🔼", name: helper.extraHumanable("赞同", statistics.up_vote_count, "票") },
+          { emoji: "💬", name: helper.extraHumanable("评论", statistics.comment_count, "条") },
+          { emoji: "⭐", name: helper.extraHumanable("收藏", statistics.favorites, "次") },
+        ]
+      ],
+    } as AdapterRepostResponsePayload<RepostExtraParams>);
+  }
+
+  // 函数：构建 Profile
+  // const fnBuildProfile = (): Omit<
+  //   AdapterRepostResponsePayload,
+  //   'postId' | 'method' | "code" | "originalUrl" | "provider" | "requester"
+  // > => {
+  //   const payload = handleData as unknown;
+  //
+  //   return {
+  //     author: {
+  //       nickname: "",
+  //     },
+  //
+  //     content: "",
+  //
+  //     badges: [
+  //       [
+  //         { emoji: "👀", name: helper.extraHumanable("浏览", 0, "次") },
+  //       ]
+  //     ],
+  //   }
+  // }
+
+  return response;
 }
 
 async function handleProcessingRequest(
