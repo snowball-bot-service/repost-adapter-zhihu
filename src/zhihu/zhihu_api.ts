@@ -2,6 +2,7 @@ import { HttpManager } from '../utils/http';
 import { ILogger } from '@snowball-bot/repost-adapter';
 import { ZhihuBaseHttpParams } from './types/base';
 import { ZhihuAnswerDetailItem, ZhihuFetchAnswerDetailParams } from './types/answer';
+import { ZhihuUserProfileParams, ZhihuUserProfileResponse } from './types/profile';
 
 /**
  * Zhihu Base HTTP Instance
@@ -54,5 +55,29 @@ export async function fetchAnswerDetail(
     query: {
       offset, limit, order, ws_qiangzhisafe, platform, include,
     }
+  });
+}
+
+/**
+ * Zhihu Fetch User Profile
+ * @param base
+ * @param params
+ */
+export async function fetchUserProfile(
+  base: ZhihuBaseHttpParams,
+  params: ZhihuUserProfileParams,
+): Promise<ZhihuUserProfileResponse> {
+  const {cookie, logger} = base;
+  const {
+    urlToken,
+    includes = [ "cover_url", "created_at", "following_count", "follower_count", "badge", "voteup_count" ],
+  } = params;
+
+  const http = buildHttpApi(cookie, logger);
+
+  const include = includes.join(",");
+
+  return await http.getJson(`/api/v4/members/${urlToken}`, {
+    query: { include },
   });
 }

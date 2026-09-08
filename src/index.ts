@@ -11,7 +11,7 @@ import {extractHandleId, fetchHandleDataFromAPI} from "./manager";
 import {UnsupportedMethodException, UnsupportedProcessException} from "./utils/error";
 import dayjs from "dayjs";
 import {RepostExtraParams} from "./type";
-import { fetchAnswerDetail } from './zhihu/zhihu_api';
+import { fetchAnswerDetail, fetchUserProfile } from './zhihu/zhihu_api';
 import { parse, HTMLElement } from 'node-html-parser';
 import { htmlToText } from './utils/html-parse';
 
@@ -138,7 +138,7 @@ async function handleRepostRequest(
     },
   };
 
-  // 转发到 Post...
+  // To Post...
   if (handleMethod === "post") {
     const answer = await fetchAnswerDetail(
       { cookie: options.zhihuCookie, logger: logger },
@@ -175,6 +175,41 @@ async function handleRepostRequest(
           { emoji: "💬", name: helper.extraHumanable("评论", statistics.comment_count, "条") },
           { emoji: "⭐", name: helper.extraHumanable("收藏", statistics.favorites, "次") },
         ]
+      ],
+    } as AdapterRepostResponsePayload<RepostExtraParams>);
+  }
+
+  // To Profile...
+  if (handleMethod === "profile") {
+    const profile = await fetchUserProfile(
+      { cookie: options.zhihuCookie, logger: logger },
+      { urlToken: handleId },
+    );
+
+    logger.debug("Profile", profile);
+
+    Object.assign(response, {
+      publishAt: dayjs.unix(profile.created_at).toDate(),
+      author: {
+        nickname: profile.name,
+        userId: profile.url_token,
+        headshotUrl: profile.avatar_url,
+      },
+
+      cover: profile.cover_url,
+
+      content: profile.headline_render,
+
+      badges: [
+        [
+          { emoji: "📍", name: profile.ip_info },
+          { emoji: "✨", name: profile.badge_v2.title === "" ? "无称号" : profile.badge_v2.title },
+        ],
+        [
+          { emoji: "🔼", name: helper.extraHumanable("获赞", profile.voteup_count, "次") },
+          { emoji: "💐", name: helper.extraHumanable("被", profile.follower_count, "人关注") },
+          { emoji: "👤", name: helper.extraHumanable("关注", profile.following_count, "人") },
+        ],
       ],
     } as AdapterRepostResponsePayload<RepostExtraParams>);
   }

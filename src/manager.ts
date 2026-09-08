@@ -26,23 +26,9 @@ export function extractHandleId(source: string): [RepostMethod?, string?] {
 
   console.log("EXTRACTS", pathname, type, typeId, subType, subTypeId);
 
+  if (type === "people" && typeId) return [ "profile", typeId ];
+
   if (subType === "answer" && subTypeId) return [ "post", subTypeId ];
-
-  // 如果分割的 Paths 首个为空，则删除
-  // if (paths.length > 1 && paths[0].length === 0) {
-  //   paths.shift();
-  // }
-
-  // const [type, tree2, tree3] = paths;
-  //
-  // switch (type) {
-  //   case 'post':
-  //     return ['post', tree3!];
-  //   case 'user':
-  //     return ['profile', tree2];
-  //   case "live":
-  //     return ['live', tree3!];
-  // }
 
   return [];
 }
