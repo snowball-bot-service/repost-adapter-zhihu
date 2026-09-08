@@ -44,7 +44,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@snowball-bot/repost-adapter": "^1.0.10",
+    "@snowball-bot/repost-adapter": "^1.0.13",
     "dayjs": "^1.11.21",
     "node-html-parser": "^9.0.3",
     "zhihu-api": "^2.4.3"

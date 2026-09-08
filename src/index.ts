@@ -3,7 +3,7 @@ import {
   AdapterContext,
   AdapterProcessRequestParams, AdapterProcessResponsePayload,
   AdapterRepostRequestParams,
-  AdapterRepostResponsePayload,
+  AdapterRepostResponsePayload, ContentItem,
   SocialProvider,
 } from '@snowball-bot/repost-adapter';
 import { HttpManager } from './utils/http';
@@ -40,6 +40,9 @@ export type {
 interface AdapterOptions {
   zhihuCookie: string;
 }
+
+// 递归解析 HTML 时跳过的标签：其内容不参与 contents 组装
+const SKIP_TAGS = new Set(['script', 'style', 'noscript', 'template', 'head']);
 
 /**
  * 常量仓库
@@ -132,7 +135,6 @@ async function handleRepostRequest(
     originalUrl: req.source,
     requester: req.requester,
     postId: handleId,
-    content: 'Failed parse...',
     author: {
       nickname: 'Failed Parse',
     },
@@ -150,11 +152,56 @@ async function handleRepostRequest(
     const { statistics } = answer.reaction;
 
     const html = parse(answer.content);
-    const content = htmlToText(html);
     const images = html.querySelectorAll("img").map((image) => ({
       src: image.getAttribute("data-original"),
       token: image.getAttribute("data-original-token"),
     }));
+
+    const contents: ContentItem[] = [];
+
+    // 递归到该分支下第一个真实 img（跳过 noscript 里的镜像 img）
+    const findImageSrc = (node: HTMLElement): string | undefined =>
+      node.getAttribute("data-original") ??
+      node.getAttribute("data-actualsrc") ??
+      node.getAttribute("src") ??
+      undefined;
+
+    // 递归遍历 HTML 层级，把符合条件的 tag 依序 insert 到 contents 中。
+    // - p    -> 段落文本
+    // - img  -> 图片（取原图地址）
+    // - code -> 代码块
+    // 命中上述 tag 后不再深入其子树；其余 tag 继续向下递归；
+    const doInsertContent = (node: HTMLElement) => {
+      const tag = (node.rawTagName ?? "").toLowerCase();
+
+      // if (SKIP_TAGS.has(tag)) return;
+
+      if (tag === "p") {
+        const text = node.textContent?.trim();
+        if (text) contents.push({ element: "p", text });
+        return;
+      }
+
+      if (tag === "img") {
+        const src = findImageSrc(node);
+        if (src) contents.push({ element: "img", buffer: src });
+        return;
+      }
+
+      if (tag === "pre") {
+        const rawCode = node.textContent ?? "";
+        const parsedCode = parse(rawCode);
+        contents.push({ element: "code", text: parsedCode.textContent });
+        return;
+      }
+
+      // 非目标 tag：继续向子元素递归
+      for (const child of node.childNodes) {
+        if (child instanceof HTMLElement) doInsertContent(child);
+      }
+    };
+
+    doInsertContent(html);
 
     Object.assign(response, {
       publishAt: dayjs.unix(answer.created_time).toDate(),
@@ -167,14 +214,23 @@ async function handleRepostRequest(
       title: answer.question.title,
       cover: images[0]?.src,
 
-      content: content,
+      contents: contents,
 
       badges: [
         [
-          { emoji: "🔼", name: helper.extraHumanable("赞同", statistics.up_vote_count, "票") },
-          { emoji: "💬", name: helper.extraHumanable("评论", statistics.comment_count, "条") },
-          { emoji: "⭐", name: helper.extraHumanable("收藏", statistics.favorites, "次") },
-        ]
+          {
+            emoji: '🔼',
+            name: helper.extraHumanable('赞同', statistics.up_vote_count, '票'),
+          },
+          {
+            emoji: '💬',
+            name: helper.extraHumanable('评论', statistics.comment_count, '条'),
+          },
+          {
+            emoji: '⭐',
+            name: helper.extraHumanable('收藏', statistics.favorites, '次'),
+          },
+        ],
       ],
     } as AdapterRepostResponsePayload<RepostExtraParams>);
   }
@@ -213,28 +269,6 @@ async function handleRepostRequest(
       ],
     } as AdapterRepostResponsePayload<RepostExtraParams>);
   }
-
-  // 函数：构建 Profile
-  // const fnBuildProfile = (): Omit<
-  //   AdapterRepostResponsePayload,
-  //   'postId' | 'method' | "code" | "originalUrl" | "provider" | "requester"
-  // > => {
-  //   const payload = handleData as unknown;
-  //
-  //   return {
-  //     author: {
-  //       nickname: "",
-  //     },
-  //
-  //     content: "",
-  //
-  //     badges: [
-  //       [
-  //         { emoji: "👀", name: helper.extraHumanable("浏览", 0, "次") },
-  //       ]
-  //     ],
-  //   }
-  // }
 
   return response;
 }

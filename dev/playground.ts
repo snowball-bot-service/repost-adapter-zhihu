@@ -20,8 +20,8 @@ async function main() {
 
     // 测试 URL 列表：随便改、随便加
     const testUrls = [
-      // 'https://www.zhihu.com/question/2011451349578031942/answer/2031204172268299364',
-      'https://www.zhihu.com/people/hbrw',
+      'https://www.zhihu.com/question/662538042/answer/2023343409935459985',
+      // 'https://www.zhihu.com/people/hbrw',
     ];
 
     for (const url of testUrls) {
