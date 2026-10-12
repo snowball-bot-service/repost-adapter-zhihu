@@ -16,8 +16,7 @@ import {
 } from "./utils/error";
 import dayjs from "dayjs";
 import {RepostExtraParams} from "./type";
-import { fetchUserProfile } from './zhihu/zhihu_api';
-import { fetchAnswerDetail } from './zhihu/zhihu_cli';
+import { fetchAnswerDetail, fetchUserProfile } from './zhihu/zhihu_cli';
 import { parse, HTMLElement } from 'node-html-parser';
 import { htmlToText } from './utils/html-parse';
 
@@ -44,7 +43,6 @@ export type {
 // ============================================================================
 
 interface AdapterOptions {
-  zhihuCookie: string;
   /**
    * zhihu-cli 可执行文件路径，未配置时从 PATH 中查找 `zhihu`
    */
@@ -95,12 +93,11 @@ const adapter: Adapter = {
   async initState(ctx: AdapterContext) {
     // 读取配置（可选）。配置由核心通过 `ctx.config(key)` 提供。
     // 比如 API key、限流参数等，建议把所有可调项都从 config 取。
-    const zhihuCookie = ctx.config<string>('zhihuCookie') ?? "";
     const zhihuCliPath = ctx.config<string>('zhihuCliPath');
 
     // 注册转发请求处理器
-    ctx.on('onRepostRequest', (req) => handleRepostRequest(req, ctx, { zhihuCookie, zhihuCliPath }));
-    ctx.on('onProcessRequest', (req) => handleProcessingRequest(req, ctx, { zhihuCookie, zhihuCliPath }));
+    ctx.on('onRepostRequest', (req) => handleRepostRequest(req, ctx, { zhihuCliPath }));
+    ctx.on('onProcessRequest', (req) => handleProcessingRequest(req, ctx, { zhihuCliPath }));
 
     ctx.logger.info(`[${CONST.provider}] Adapter initialized.`);
   },
@@ -247,21 +244,23 @@ async function handleRepostRequest(
   // To Profile...
   if (handleMethod === "profile") {
     const profile = await fetchUserProfile(
-      { cookie: options.zhihuCookie, logger: logger },
+      { bin: options.zhihuCliPath, logger: logger },
       { urlToken: handleId },
-    );
+    ).catch((err) => {
+      if (err instanceof ZhihuCliException)
+        throw new FetchHandleDataFailedException(handleMethod, handleId, err.output);
+      throw err;
+    });
 
     logger.debug("Profile", profile);
 
+    // zhihu-cli 的 user 输出不含 created_at / cover_url，故不再提供 publishAt / cover
     Object.assign(response, {
-      publishAt: dayjs.unix(profile.created_at).toDate(),
       author: {
         nickname: profile.name,
         userId: profile.url_token,
         headshotUrl: profile.avatar_url,
       },
-
-      cover: profile.cover_url,
 
       content: profile.headline_render,
 

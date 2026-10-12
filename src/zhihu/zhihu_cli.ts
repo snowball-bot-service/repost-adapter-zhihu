@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { ILogger } from '@snowball-bot/repost-adapter';
 import { ZhihuAnswerDetailItem, ZhihuFetchAnswerDetailParams } from './types/answer';
+import { ZhihuUserProfileParams, ZhihuUserProfileResponse } from './types/profile';
 import { ZhihuCliException } from '../utils/error';
 
 export interface ZhihuBaseCliParams {
@@ -68,4 +69,16 @@ export async function fetchAnswerDetail(
   params: ZhihuFetchAnswerDetailParams,
 ): Promise<ZhihuAnswerDetailItem> {
   return runZhihuCliJson<ZhihuAnswerDetailItem>(base, ['answer', params.answerId]);
+}
+
+/**
+ * Zhihu Fetch User Profile (via `zhihu user <UrlToken> --json`)
+ * @param base
+ * @param params
+ */
+export async function fetchUserProfile(
+  base: ZhihuBaseCliParams,
+  params: ZhihuUserProfileParams,
+): Promise<ZhihuUserProfileResponse> {
+  return runZhihuCliJson<ZhihuUserProfileResponse>(base, ['user', params.urlToken]);
 }

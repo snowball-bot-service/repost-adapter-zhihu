@@ -1,9 +1,8 @@
-// Auto-generated TypeScript types for the Zhihu user profile API response.
+// TypeScript types for `zhihu user <UrlToken> --json` (zhihu-cli) output.
 // Root interface: ZhihuUserProfileResponse
 
 export interface ZhihuUserProfileParams {
   urlToken: string;
-  includes?: string[];
 }
 
 export interface ZhihuUserProfileResponse {
@@ -19,7 +18,7 @@ export interface ZhihuUserProfileResponse {
   user_type: string;
   headline: string;
   headline_render: string;
-  description?: string;
+  description: string;
   gender: number;
   is_advertiser: boolean;
   ip_info: string;
@@ -27,8 +26,6 @@ export interface ZhihuUserProfileResponse {
   kvip_info: KvipInfo;
   badge: Badge[];
   badge_v2: BadgeV2;
-  answer_count?: number;
-  articles_count?: number;
   follower_count: number;
   follower_count_text: string;
   follower_count_num: string;
@@ -36,18 +33,25 @@ export interface ZhihuUserProfileResponse {
   following_count: number;
   following_count_num: string;
   following_count_unit: string;
+  answer_count: number;
+  articles_count: number;
   project_count: number;
-  favorite_count?: number;
+  favorite_count: number;
+  favorited_count: number;
   voteup_count: number;
+  thanked_count: number;
   available_medals_count: number;
-  cover_url?: string;
+  business: Topic;
+  locations: Topic[];
+  employments: Employment[];
+  educations: Education[];
   org_verify_status: any | null;
-  created_at: number;
   is_realname: boolean;
   has_applying_column: boolean;
   is_new_rename: boolean;
   has_agent_content: boolean;
   ai_assistant_info: any | null;
+  extra: any | null;
 }
 
 export interface VipInfo {
@@ -98,4 +102,25 @@ export interface BadgeSource {
   avatar_url: string;
   description: string;
   priority: number;
+}
+
+/**
+ * 话题实体 (行业 / 居住地 / 公司 / 职位 / 学校 等均为此结构)
+ */
+export interface Topic {
+  id: string;
+  type: string;
+  url: string;
+  name: string;
+  avatar_url: string;
+}
+
+export interface Employment {
+  job?: Topic;
+  company?: Topic;
+}
+
+export interface Education {
+  school?: Topic;
+  major?: Topic;
 }

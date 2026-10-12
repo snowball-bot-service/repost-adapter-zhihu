@@ -2,18 +2,11 @@ import 'dotenv/config';   // 自动加载 .env 文件
 import adapter from '../src';
 import { MockAdapterHost } from './harness';
 import * as process from 'node:process';
-import { fetchUserProfile } from '../src/zhihu/zhihu_api';
 
 async function main() {
-  // {
-  //   const zhihuCookie = process.env.ZHIHU_COOKIE as string;
-  //   const profile = await fetchUserProfile({ cookie: zhihuCookie }, { urlToken: "hbrw" });
-  //   console.log("PROFILE", profile);
-  // }
-
   {
     const host = new MockAdapterHost({
-      zhihuCookie: process.env.ZHIHU_COOKIE as string,
+      zhihuCliPath: process.env.ZHIHU_CLI_PATH,
     });
 
     await host.register(adapter);
