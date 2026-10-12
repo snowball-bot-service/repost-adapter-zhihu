@@ -2,7 +2,7 @@ import 'dotenv/config';   // 自动加载 .env 文件
 import adapter from '../src';
 import { MockAdapterHost } from './harness';
 import * as process from 'node:process';
-import { fetchAnswerDetail, fetchUserProfile } from '../src/zhihu/zhihu_api';
+import { fetchUserProfile } from '../src/zhihu/zhihu_api';
 
 async function main() {
   // {

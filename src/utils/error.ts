@@ -25,6 +25,19 @@ export class FetchHandleDataFailedException extends SnowballException {
 }
 
 /**
+ * zhihu-cli 执行失败错误
+ */
+export class ZhihuCliException extends SnowballException {
+  constructor(
+    public readonly args: string[],
+    public readonly exitCode: number | string | undefined,
+    public readonly output: string,
+  ) {
+    super(`Zhihu CLI Failed | Args: ${args.join(' ')} | Exit Code: ${exitCode} | Output: ${output}`);
+  }
+}
+
+/**
  * 不支持的类型错误
  */
 export class UnsupportedMethodException extends SnowballException {

@@ -13,6 +13,7 @@ export function extractURL(source: string) {
  * 提取 Source URL 中的 Handle ID (PostId, UserId, ...)
  * @param source 原始 URL
  * @example Path: /question/2011451349578031942/answer/2031204172268299364 => numberOfPath: 1 => question
+ * @example Path: /answer/2091869409639917181 => post, 2091869409639917181
  */
 export function extractHandleId(source: string): [RepostMethod?, string?] {
   const { pathname } = extractURL(source);
@@ -28,6 +29,10 @@ export function extractHandleId(source: string): [RepostMethod?, string?] {
 
   if (type === "people" && typeId) return [ "profile", typeId ];
 
+  // /answer/<AnswerID>
+  if (type === "answer" && typeId) return [ "post", typeId ];
+
+  // /question/<QuestionID>/answer/<AnswerID>
   if (subType === "answer" && subTypeId) return [ "post", subTypeId ];
 
   return [];

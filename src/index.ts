@@ -8,10 +8,16 @@ import {
 } from '@snowball-bot/repost-adapter';
 import { HttpManager } from './utils/http';
 import {extractHandleId, fetchHandleDataFromAPI} from "./manager";
-import {UnsupportedMethodException, UnsupportedProcessException} from "./utils/error";
+import {
+  FetchHandleDataFailedException,
+  UnsupportedMethodException,
+  UnsupportedProcessException,
+  ZhihuCliException,
+} from "./utils/error";
 import dayjs from "dayjs";
 import {RepostExtraParams} from "./type";
-import { fetchAnswerDetail, fetchUserProfile } from './zhihu/zhihu_api';
+import { fetchUserProfile } from './zhihu/zhihu_api';
+import { fetchAnswerDetail } from './zhihu/zhihu_cli';
 import { parse, HTMLElement } from 'node-html-parser';
 import { htmlToText } from './utils/html-parse';
 
@@ -39,6 +45,10 @@ export type {
 
 interface AdapterOptions {
   zhihuCookie: string;
+  /**
+   * zhihu-cli 可执行文件路径，未配置时从 PATH 中查找 `zhihu`
+   */
+  zhihuCliPath?: string;
 }
 
 // 递归解析 HTML 时跳过的标签：其内容不参与 contents 组装
@@ -86,10 +96,11 @@ const adapter: Adapter = {
     // 读取配置（可选）。配置由核心通过 `ctx.config(key)` 提供。
     // 比如 API key、限流参数等，建议把所有可调项都从 config 取。
     const zhihuCookie = ctx.config<string>('zhihuCookie') ?? "";
+    const zhihuCliPath = ctx.config<string>('zhihuCliPath');
 
     // 注册转发请求处理器
-    ctx.on('onRepostRequest', (req) => handleRepostRequest(req, ctx, { zhihuCookie }));
-    ctx.on('onProcessRequest', (req) => handleProcessingRequest(req, ctx, { zhihuCookie }));
+    ctx.on('onRepostRequest', (req) => handleRepostRequest(req, ctx, { zhihuCookie, zhihuCliPath }));
+    ctx.on('onProcessRequest', (req) => handleProcessingRequest(req, ctx, { zhihuCookie, zhihuCliPath }));
 
     ctx.logger.info(`[${CONST.provider}] Adapter initialized.`);
   },
@@ -143,13 +154,15 @@ async function handleRepostRequest(
   // To Post...
   if (handleMethod === "post") {
     const answer = await fetchAnswerDetail(
-      { cookie: options.zhihuCookie, logger: logger },
+      { bin: options.zhihuCliPath, logger: logger },
       { answerId: handleId },
-    );
+    ).catch((err) => {
+      if (err instanceof ZhihuCliException)
+        throw new FetchHandleDataFailedException(handleMethod, handleId, err.output);
+      throw err;
+    });
 
     logger.debug("Answer", answer);
-
-    const { statistics } = answer.reaction;
 
     const html = parse(answer.content);
     const images = html.querySelectorAll("img").map((image) => ({
@@ -220,15 +233,11 @@ async function handleRepostRequest(
         [
           {
             emoji: '🔼',
-            name: helper.extraHumanable('赞同', statistics.up_vote_count, '票'),
+            name: helper.extraHumanable('赞同', answer.voteup_count, '票'),
           },
           {
             emoji: '💬',
-            name: helper.extraHumanable('评论', statistics.comment_count, '条'),
-          },
-          {
-            emoji: '⭐',
-            name: helper.extraHumanable('收藏', statistics.favorites, '次'),
+            name: helper.extraHumanable('评论', answer.comment_count, '条'),
           },
         ],
       ],
